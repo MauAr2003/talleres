@@ -38,5 +38,93 @@ export const appointmentsService = {
       console.error('Error en appointmentsService.createAppointment:', error);
       throw error;
     }
+  },
+
+  async getClients(accessToken: string) {
+    try {
+      const response = await fetch(`${API_URL}/clients`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al obtener los clientes');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error en appointmentsService.getClients:', error);
+      throw error;
+    }
+  },
+
+  async getVehiclesByClient(clientId: string, accessToken: string) {
+    try {
+      const response = await fetch(`${API_URL}/vehicles?client_id=${clientId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al obtener los vehículos');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error en appointmentsService.getVehiclesByClient:', error);
+      throw error;
+    }
+  },
+
+  async getAppointments(accessToken: string) {
+    try {
+      const response = await fetch(`${API_URL}/appointments`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al obtener las citas');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error en appointmentsService.getAppointments:', error);
+      throw error;
+    }
+  },
+
+  async getVehicles(accessToken: string) {
+    try {
+      const response = await fetch(`${API_URL}/vehicles`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al obtener los vehículos');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error en appointmentsService.getVehicles:', error);
+      throw error;
+    }
   }
 };

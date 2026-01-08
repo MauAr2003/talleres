@@ -1,72 +1,75 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MainLayout from '../components/layout/MainLayout';
 import NuevaCitaModal from '../components/citas/NuevaCitaModal';
-
-// TODO: BORRAR ESTOS DATOS CUANDO SE IMPLEMENTE EL BACKEND
-const citasMock = [
-  {
-    folio: 'APT-2026-001',
-    fecha: '02/01/2026',
-    hora: '09:00',
-    cliente: {
-      nombre: 'Juan Pérez',
-      telefono: '55-1234-5678'
-    },
-    vehiculo: 'Toyota Camry 2020 - ABC-123',
-    servicio: 'Mantenimiento Preventivo',
-    asesor: 'María López',
-    estado: 'confirmada'
-  },
-  {
-    folio: 'APT-2026-002',
-    fecha: '02/01/2026',
-    hora: '10:00',
-    cliente: {
-      nombre: 'María González',
-      telefono: '55-2345-6789'
-    },
-    vehiculo: 'Honda Civic 2019 - XYZ-789',
-    servicio: 'Cambio de Frenos',
-    asesor: 'Juan Pérez',
-    estado: 'en_servicio'
-  },
-  {
-    folio: 'APT-2026-003',
-    fecha: '02/01/2026',
-    hora: '12:00',
-    cliente: {
-      nombre: 'Carlos López',
-      telefono: '55-3456-7890'
-    },
-    vehiculo: 'Nissan Sentra 2021 - DEF-456',
-    servicio: 'Afinación',
-    asesor: 'María López',
-    estado: 'pendiente'
-  },
-  {
-    folio: 'APT-2026-004',
-    fecha: '02/01/2026',
-    hora: '14:00',
-    cliente: {
-      nombre: 'Ana Martínez',
-      telefono: '55-4567-8901'
-    },
-    vehiculo: 'Mazda 3 2018 - GHI-789',
-    servicio: 'Diagnóstico Motor',
-    asesor: 'Juan Pérez',
-    estado: 'confirmada'
-  }
-];
+import { useAuth } from '../context/AuthContext';
+import { appointmentsService } from '../services/appointmentsService';
 
 export default function CitasPage() {
+  const { accessToken } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [citas, setCitas] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Cargar citas cuando el componente se monte
+  useEffect(() => {
+    if (accessToken) {
+      loadAppointments();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
+
+  const loadAppointments = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // Cargar citas, clientes y vehículos en paralelo
+      const [appointmentsResponse, clientsResponse, vehiclesResponse] = await Promise.all([
+        appointmentsService.getAppointments(accessToken!),
+        appointmentsService.getClients(accessToken!),
+        appointmentsService.getVehicles(accessToken!)
+      ]);
+
+      setCitas(appointmentsResponse.data || []);
+      setClients(clientsResponse.data || []);
+      setVehicles(vehiclesResponse.data || []);
+    } catch (error: any) {
+      console.error('Error al cargar citas:', error);
+      setError('Error al cargar las citas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para encontrar un cliente por ID
+  const getClientById = (clientId: string) => {
+    return clients.find(client => (client._id || client.id) === clientId);
+  };
+
+  // Función para encontrar un vehículo por ID
+  const getVehicleById = (vehicleId: string) => {
+    return vehicles.find(vehicle => (vehicle._id || vehicle.id) === vehicleId);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  };
 
   const getEstadoBadge = (estado: string) => {
     const badges = {
+      programado: 'bg-yellow-500 text-white',
       pendiente: 'bg-gray-400 text-white',
       confirmada: 'bg-blue-500 text-white',
       en_servicio: 'bg-green-500 text-white',
@@ -75,6 +78,7 @@ export default function CitasPage() {
     };
 
     const labels = {
+      programado: 'Programado',
       pendiente: 'Pendiente',
       confirmada: 'Confirmada',
       en_servicio: 'En Servicio',
@@ -83,8 +87,8 @@ export default function CitasPage() {
     };
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${badges[estado as keyof typeof badges]}`}>
-        {labels[estado as keyof typeof labels]}
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${badges[estado as keyof typeof badges] || 'bg-gray-400 text-white'}`}>
+        {labels[estado as keyof typeof labels] || estado}
       </span>
     );
   };
@@ -142,78 +146,116 @@ export default function CitasPage() {
           </div>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
         {/* Citas Table */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden transition-colors duration-300">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Citas Programadas</h2>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Folio</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha y Hora</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cliente</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Vehículo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Servicio</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Asesor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {citasMock.map((cita) => (
-                  <tr key={cita.folio} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {cita.folio}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      <div>{cita.fecha}</div>
-                      <div className="text-gray-500 dark:text-gray-400">{cita.hora}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      <div className="font-medium">{cita.cliente.nombre}</div>
-                      <div className="text-gray-500 dark:text-gray-400">{cita.cliente.telefono}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {cita.vehiculo}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {cita.servicio}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {cita.asesor}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {getEstadoBadge(cita.estado)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center gap-2">
-                        <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
-                          <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                        <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
-                          <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <svg className="animate-spin w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="ml-3 text-gray-600 dark:text-gray-400">Cargando citas...</span>
+            </div>
+          ) : citas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="text-gray-600 dark:text-gray-400 text-lg">No hay citas programadas</p>
+              <p className="text-gray-500 dark:text-gray-500 text-sm mt-1">Crea una nueva cita para comenzar</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Folio</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha y Hora</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cliente</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Vehículo</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Servicio</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Asesor</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {citas.map((cita: any, index: number) => (
+                    <tr key={cita._id || cita.id || `cita-${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {cita.sequence || cita.folio || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        <div>{formatDate(cita.appointment_date)}</div>
+                        <div className="text-gray-500 dark:text-gray-400">{formatTime(cita.start_time)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        <div className="font-medium">
+                          {(() => {
+                            const client = getClientById(cita.client_id);
+                            return client?.name || client?.full_name || `${client?.first_name || ''} ${client?.last_name || ''}`.trim() || '-';
+                          })()}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {(() => {
+                          const vehicle = getVehicleById(cita.vehicle_id);
+                          return vehicle?.vin || '-';
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {cita.appointment_type}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {cita.advisor_id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {getEstadoBadge(cita.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex items-center gap-2">
+                          <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
+                            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                          <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors">
+                            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Modal Nueva Cita */}
         <NuevaCitaModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            loadAppointments(); // Recargar citas después de cerrar el modal
+          }}
         />
       </div>
     </MainLayout>

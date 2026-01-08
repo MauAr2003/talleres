@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentsService } from '../../services/appointmentsService';
 
@@ -40,6 +40,10 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
   const { accessToken, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [clients, setClients] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
 
   // Inicializar con valores por defecto
   const defaultStartTime = getTomorrowAt9AM();
@@ -62,6 +66,40 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
     sequence: '',
     notes: ''
   });
+
+  // Cargar clientes cuando se abre el modal
+  useEffect(() => {
+    if (isOpen && accessToken) {
+      loadClients();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, accessToken]);
+
+  const loadClients = async () => {
+    setLoadingClients(true);
+    try {
+      const response = await appointmentsService.getClients(accessToken!);
+      setClients(response.data || []);
+    } catch (error: any) {
+      console.error('Error al cargar clientes:', error);
+      setError('Error al cargar la lista de clientes');
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  const loadVehicles = async (clientId: string) => {
+    setLoadingVehicles(true);
+    try {
+      const response = await appointmentsService.getVehiclesByClient(clientId, accessToken!);
+      setVehicles(response.data || []);
+    } catch (error: any) {
+      console.error('Error al cargar vehículos:', error);
+      setError('Error al cargar la lista de vehículos');
+    } finally {
+      setLoadingVehicles(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,10 +169,11 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
         notes: ''
       });
 
-      // Cerrar modal
-      onClose();
+      // Limpiar listas
+      setVehicles([]);
 
-      // TODO: Actualizar la lista de citas después de crear una nueva
+      // Cerrar modal (el componente padre recargará las citas)
+      onClose();
 
     } catch (err: any) {
       console.error('Error al crear cita:', err);
@@ -146,6 +185,20 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+
+    // Si cambia el cliente, cargar vehículos y resetear vehicle_id
+    if (name === 'client_id') {
+      setFormData(prev => ({
+        ...prev,
+        client_id: value,
+        vehicle_id: '' // Resetear vehículo cuando cambia el cliente
+      }));
+      setVehicles([]); // Limpiar lista de vehículos
+      if (value) {
+        loadVehicles(value);
+      }
+      return;
+    }
 
     setFormData(prev => {
       const updatedData = {
@@ -211,11 +264,17 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
                 value={formData.client_id}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+                disabled={loadingClients}
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">Selecciona un cliente</option>
-                <option value="client1">Cliente 1</option>
-                <option value="client2">Cliente 2</option>
+                <option value="">
+                  {loadingClients ? 'Cargando clientes...' : 'Selecciona un cliente'}
+                </option>
+                {clients.map((client, index) => (
+                  <option key={client._id || client.id || `client-${index}`} value={client._id || client.id}>
+                    {client.name || client.full_name || `${client.first_name} ${client.last_name}`}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -232,11 +291,21 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
                 value={formData.vehicle_id}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+                disabled={!formData.client_id || loadingVehicles}
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">Selecciona un vehículo</option>
-                <option value="vehicle1">Vehículo 1</option>
-                <option value="vehicle2">Vehículo 2</option>
+                <option value="">
+                  {!formData.client_id
+                    ? 'Selecciona un cliente primero'
+                    : loadingVehicles
+                    ? 'Cargando vehículos...'
+                    : 'Selecciona un vehículo'}
+                </option>
+                {vehicles.map((vehicle, index) => (
+                  <option key={vehicle._id || vehicle.id || `vehicle-${index}`} value={vehicle._id || vehicle.id}>
+                    {vehicle.brand} {vehicle.model} {vehicle.year} - {vehicle.license}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -307,17 +376,15 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
                 </svg>
                 Asesor <span className="text-red-500">*</span>
               </label>
-              <select
+              <input
+                type="text"
                 name="advisor_id"
                 value={formData.advisor_id}
                 onChange={handleChange}
+                placeholder="Nombre del asesor"
                 required
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
-              >
-                <option value="">Selecciona un asesor</option>
-                <option value="advisor1">Asesor 1</option>
-                <option value="advisor2">Asesor 2</option>
-              </select>
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+              />
             </div>
 
             {/* Appointment Date */}
@@ -373,27 +440,6 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
                 }}
                 required
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
-              />
-            </div>
-
-            {/* Estimated Duration */}
-            <div>
-              <label className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Duración Estimada (minutos) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                name="estimated_duration"
-                value={formData.estimated_duration}
-                onChange={handleChange}
-                placeholder="60"
-                min="15"
-                step="15"
-                required
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
               />
             </div>
 
