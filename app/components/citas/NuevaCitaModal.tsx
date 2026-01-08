@@ -64,7 +64,10 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
     status: 'programado',
     // Campos opcionales
     sequence: '',
-    notes: ''
+    notes: '',
+    pickup_address: '',
+    phone: '',
+    email: ''
   });
 
   // Cargar clientes cuando se abre el modal
@@ -137,6 +140,15 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
       if (formData.notes) {
         payload.notes = formData.notes;
       }
+      if (formData.pickup_address) {
+        payload.pickup_address = formData.pickup_address;
+      }
+      if (formData.phone) {
+        payload.phone = formData.phone;
+      }
+      if (formData.email) {
+        payload.email = formData.email;
+      }
 
       console.log('Enviando cita:', JSON.stringify(payload, null, 2));
 
@@ -166,7 +178,10 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
         estimated_duration: 60,
         status: 'programado',
         sequence: '',
-        notes: ''
+        notes: '',
+        pickup_address: '',
+        phone: '',
+        email: ''
       });
 
       // Limpiar listas
@@ -440,6 +455,61 @@ export default function NuevaCitaModal({ isOpen, onClose }: NuevaCitaModalProps)
                 }}
                 required
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+              />
+            </div>
+
+            {/* Pickup Address */}
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Dirección de Entrada/Recolección
+              </label>
+              <input
+                type="text"
+                name="pickup_address"
+                value={formData.pickup_address}
+                onChange={handleChange}
+                placeholder="Dirección completa para recolección del vehículo"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+              />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                Teléfono
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Número de teléfono"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Correo Electrónico
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="correo@ejemplo.com"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
               />
             </div>
 
